@@ -323,32 +323,32 @@ class ScriptManager:
                 logger.info(f"✅ Automatic backup completed: {message}")
                 # Upload to Dropbox in a new thread to avoid blocking
                 if path:
-                    threading.Thread(target=self.upload_to_dropbox, args=(path,)).start()
+                    threading.Thread(target=self.upload_to_dropbox, args=(path, False)).start()
             else:
                 logger.error(f"❌ Automatic backup failed: {message}")
         except Exception as e:
             logger.error(f"Error in automatic backup: {e}")
 
-    def upload_to_dropbox(self, backup_path: str):
-        """Uploads a backup file to Dropbox and notifies admin."""
-        token = os.getenv("sl.u.AGBzvQZOzQbSeFFbHQkAvEXBDMWpzAyMQALBLg4garVuvbxWrrBcQaEUTVB33jhG18PayhhoGnlDIW8WJ2zkb6NfM8zXNUhrpDMy661i6l1-Pz8ySFZhz8O-XXl2WuIRC6sx0io4_PUde-yZVOyuwjs9mLXXJ6Q0jZaNkoN8Tde5Nx8U7IshdJYLUkiA0W6HLcGZRmVcSSe8_T7qkiPi8GRPDMbOZdl6Bl4QjG3VmzrDkxQUM4DSOFJgwH7bMmfQtS7yLSTMRL1uvW5dq7at3_qVSSj7kKpRun2HytvOfhsCMA0aKvX6ZiaCz7sSy6oX3FsP0qIBXVZx8XMyxRj6lKNepfAS-5keH39TnPxPQtGOp_lHj2tysifuaGf95Y77DO7U6RnTkNtvnMuRNc0L-64d6L74O2jRiF5PAlz-RXsaYcRmAtbyLIZ0TVDafndSqSZUslVCRL8uTa6fKWg43HVviCiadiY02AgHqy-rWxrxYnrnbyZ53KPFwOrUrE4bWd2M351fFnXIk524aHF4scwVF_-vtyJH8VfCcNrB7UxZOAdN1Zw7LH1FRblF4Mc4Yg4jcDCZRJHn23SPHK-2IYmLr39b0pd1fB5tVb34j0gbBCqqpKaB6_-r0tfNBS-xUXg9VXzgolDt8wPlj8-2Bes-_kFobGoIKFPjhvl6-GW16yv5ny7CJlq8Zfdzm53xxBx1tp6Sx9xGHnki8hrWvdg17rdaF2WEtGjXdGKpOdOYLcMgWKam-r6aCwCQYSS1ph7xqlT19lPjKOy2C2f_FhkGpYtvV-XGS7U6V_JWSjiSaB-u2evNOIJRVPpA-m0inpEiyB3EOZO8ZicL7pzhF9mP-88ZDmmQYjkPjFUxxDHCnwJRkajPa8qjjjkFPTDex5ckaaupwLtWAR19LUR9rtR80V_gMulc2gw66Wh99rHGTJob9TfQLv-nI5dczjdzAMjDiTMtvpMd8XI5SBvYAjIMJ8LDk67mRhS6JuuLQ4g952boyKuP6cWLDnoAqPceL3ILrBj5NNodUxPEw-5fLFY1G77B-WgeXGicWv-TZIvbrmyDqjJymteBiYf7FZeMeyyhvf8i1QypyA6LZi2ByBU3SztWdPYu20sD_vaiVHteh8IuZFd-rigI8irePTG9SQN0dTK5nXKBW7sqr4wIcINmGZfNkkqKViHW_c0J2qMONVNZrP6NRNl1yDXIqy-rnDZInPIgzZSMOA9gLezrCAu4SkdOMXaBvyu7Zxk4lkri_dt37-vRe0jY1Qewx--NgdgowezspyGhRejOM9sZ7I2GE3U2Epg4AiBrFWZ2zWf4omH8qCxRm7Bc2D4kiqreRtlwxf9TUeJB971uH0ZmLbVvdkjsh1y2zkiZvWE9kJyc7Oyj8xzLBDYixLeCvCnhq-sTUVWQN7NGrE75LSmrjH5q")
+    def upload_file_to_dropbox(self, file_path: str) -> Tuple[bool, Optional[str]]:
+        """Uploads a file to Dropbox and returns the direct download link."""
+        token = os.getenv("DROPBOX_ACCESS_TOKEN")
         if not token:
-            logger.warning("DROPBOX_ACCESS_TOKEN not set. Skipping Dropbox upload.")
-            return
+            logger.warning("DROPBOX_ACCESS_TOKEN not set. Cannot upload to Dropbox.")
+            return False, "Dropbox token not configured."
 
-        if not backup_path or not os.path.exists(backup_path):
-            logger.error(f"Backup file not found at {backup_path}. Skipping Dropbox upload.")
-            return
+        if not file_path or not os.path.exists(file_path):
+            logger.error(f"File not found at {file_path}. Skipping Dropbox upload.")
+            return False, "File not found."
 
-        backup_filename = os.path.basename(backup_path)
+        file_name = os.path.basename(file_path)
+        dropbox_path = f"/BotBackups/{file_name}"
 
         try:
             logger.info(f"Connecting to Dropbox...")
             dbx = dropbox.Dropbox(token)
-            dropbox_path = f"/BotBackups/{backup_filename}"
 
-            with open(backup_path, "rb") as f:
-                logger.info(f"Uploading {backup_filename} to Dropbox at {dropbox_path}...")
+            with open(file_path, "rb") as f:
+                logger.info(f"Uploading {file_name} to Dropbox at {dropbox_path}...")
                 dbx.files_upload(f.read(), dropbox_path, mode=dropbox.files.WriteMode('overwrite'))
 
             logger.info("✅ Dropbox upload successful.")
@@ -367,14 +367,26 @@ class ScriptManager:
                 else:
                     raise
 
-            # Send notification to admin
+            return True, direct_download_link
+
+        except Exception as e:
+            logger.error(f"❌ Failed to upload to Dropbox: {e}")
+            return False, str(e)
+
+    def upload_to_dropbox(self, backup_path: str, manual_export: bool = False):
+        """Uploads a backup file to Dropbox and notifies admin."""
+        backup_filename = os.path.basename(backup_path)
+        success, result = self.upload_file_to_dropbox(backup_path)
+
+        if success:
+            direct_download_link = result
+            backup_type = "Manual Backup" if manual_export else "Automatic Backup"
             message = (
-                f"✅ **Automatic Backup Uploaded to Dropbox**\n\n"
+                f"✅ **{backup_type} Uploaded to Dropbox**\n\n"
                 f"**File:** `{backup_filename}`\n\n"
                 f"**Direct Download Link:**\n`{direct_download_link}`\n\n"
                 f"You can restore this backup using the `/importlink` command."
             )
-
             loop = self.application.loop
             for admin_id in ADMIN_IDS:
                 coro = self.application.bot.send_message(
@@ -383,15 +395,14 @@ class ScriptManager:
                     parse_mode=ParseMode.MARKDOWN
                 )
                 asyncio.run_coroutine_threadsafe(coro, loop)
-
             logger.info(f"Sent Dropbox backup notification to {len(ADMIN_IDS)} admin(s).")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to upload to Dropbox: {e}")
+        else:
+            error_details = result
+            backup_type = "Manual" if manual_export else "Automatic"
             error_message = (
-                f"❌ **Dropbox Backup Upload Failed**\n\n"
+                f"❌ **Dropbox {backup_type} Backup Upload Failed**\n\n"
                 f"**File:** `{backup_filename}`\n\n"
-                f"**Error:** `{str(e)}`\n\n"
+                f"**Error:** `{error_details}`\n\n"
                 "Please check the bot logs and your Dropbox token."
             )
             loop = self.application.loop
@@ -1681,28 +1692,45 @@ Your enhanced server is ready! 🎯
             if not self.is_admin(update.effective_user.id):
                 await self.unauthorized_response(update)
                 return
-            
+
             processing_msg = await update.message.reply_text("🔄 Creating backup...")
-            
+
             success, message, backup_path = self.script_manager.create_backup(is_automatic=False)
-            
+
             if success and backup_path:
-                await processing_msg.edit_text("✅ Backup created! Now uploading...")
-                try:
-                    await update.message.reply_document(
-                        document=open(backup_path, 'rb'),
-                        caption=f"Here is your backup file.\n\n{message}"
+                file_size_mb = os.path.getsize(backup_path) / (1024 * 1024)
+
+                # If file is larger than 40MB, upload to Dropbox
+                if file_size_mb > 40:
+                    await processing_msg.edit_text(
+                        f"📦 Backup file is large ({file_size_mb:.2f} MB). Uploading to Dropbox..."
                     )
-                    await processing_msg.delete()
-                except Exception as e:
-                    await processing_msg.edit_text(f"❌ Failed to upload backup: {e}")
-                finally:
-                    # Clean up the local file after sending
-                    if os.path.exists(backup_path):
-                        os.remove(backup_path)
+                    # Run Dropbox upload in a separate thread
+                    threading.Thread(
+                        target=self.script_manager.upload_to_dropbox,
+                        args=(backup_path, True)  # Pass manual_export=True
+                    ).start()
+                    await processing_msg.edit_text(
+                        "✅ Upload to Dropbox has been initiated. You will receive a notification with the download link shortly."
+                    )
+                else:
+                    # Send directly via Telegram
+                    await processing_msg.edit_text("✅ Backup created! Now uploading...")
+                    try:
+                        await update.message.reply_document(
+                            document=open(backup_path, 'rb'),
+                            caption=f"Here is your backup file.\n\n{message}"
+                        )
+                        await processing_msg.delete()
+                    except Exception as e:
+                        await processing_msg.edit_text(f"❌ Failed to upload backup: {e}")
+                    finally:
+                        # Clean up the local file after sending
+                        if os.path.exists(backup_path):
+                            os.remove(backup_path)
             else:
                 await processing_msg.edit_text(f"❌ Backup failed: {message}")
-                
+
         except Exception as e:
             logger.error(f"Error creating manual backup: {e}")
             await update.message.reply_text(f"❌ Error creating backup: {str(e)}")
