@@ -2675,19 +2675,17 @@ Choose an option below:"""
             success, message, backup_path = self.script_manager.create_backup(is_automatic=False)
             
             if success and backup_path:
-                await query.edit_message_text("✅ Backup created! Now uploading...")
-                try:
-                    await query.message.reply_document(
-                        document=open(backup_path, 'rb'),
-                        caption=f"Here is your backup file.\n\n{message}"
-                    )
-                    await query.delete_message()
-                except Exception as e:
-                    await query.edit_message_text(f"❌ Failed to upload backup: {e}")
-                finally:
-                    # Clean up the local file after sending
-                    if os.path.exists(backup_path):
-                        os.remove(backup_path)
+                await query.edit_message_text("✅ Backup created! Uploading to Dropbox...")
+
+                # Run Dropbox upload in a separate thread
+                threading.Thread(
+                    target=self.script_manager.upload_to_dropbox,
+                    args=(backup_path, True)  # Pass manual_export=True
+                ).start()
+
+                await query.edit_message_text(
+                    "✅ Upload to Dropbox has been initiated. You will receive a notification with the download link shortly."
+                )
             else:
                 await query.edit_message_text(f"❌ Backup failed: {message}")
                 
