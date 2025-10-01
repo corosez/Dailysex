@@ -101,8 +101,8 @@ DATA_FILE = "bot_data.json"
 BACKUP_DIR = "backups"
 
 class ScriptManager:
-    def __init__(self, application: "Application"):
-        self.application = application
+    def __init__(self):
+        self.application: Optional["Application"] = None
         self.scripts: Dict[str, Dict] = {}
         self.processes: Dict[str, subprocess.Popen] = {}
         self.script_stdin_pipes: Dict[str, subprocess.Popen] = {}  # Track stdin pipes for script input
@@ -110,13 +110,19 @@ class ScriptManager:
         self.interactive_processes: Dict[int, subprocess.Popen] = {}  # For terminal sessions
         self.backup_thread = None
         self.last_backup_time = None
-        self.bot_loop = asyncio.get_running_loop()
+        self.bot_loop = None
         self.load_data()
         self.ensure_directories()
         self.monitor_thread = threading.Thread(target=self.monitor_processes, daemon=True)
         self.monitor_thread.start()
         # Start automatic backup thread
         self.start_backup_scheduler()
+
+    def set_bot_instance(self, application: "Application", loop: asyncio.AbstractEventLoop):
+        """Sets the bot application and event loop."""
+        self.application = application
+        self.bot_loop = loop
+        logger.info("✅ Bot instance and event loop set in ScriptManager.")
 
     def ensure_directories(self):
         """Create necessary directories"""
@@ -332,7 +338,7 @@ class ScriptManager:
 
     def upload_file_to_dropbox(self, file_path: str) -> Tuple[bool, Optional[str]]:
         """Uploads a file to Dropbox and returns the direct download link."""
-        token = "sl.buF-cR-2X0-s_1562gdhcfjOey4JgYkYf9iAORpC25oT3CMT2N2uVpdeS1xqn5r2tVvG64GZl5gxCeaSClG6vMzl2d29i7zTcs79u5Js7xG4-o_H2aZb2lUf8c3e0b9d8e7f6"
+        token = os.getenv("DROPBOX_ACCESS_TOKEN")
         if not token:
             logger.warning("DROPBOX_ACCESS_TOKEN not set. Cannot upload to Dropbox.")
             return False, "Dropbox token not configured."
@@ -1076,8 +1082,8 @@ class ScriptManager:
 
 class TelegramBot:
     def __init__(self):
+        self.script_manager = ScriptManager()
         self.application = Application.builder().token(BOT_TOKEN).build()
-        self.script_manager = ScriptManager(self.application)
 
     def is_admin(self, user_id: int) -> bool:
         """Check if user is admin"""
@@ -2697,39 +2703,36 @@ Choose an option below:"""
 
     def run(self):
         """Run the bot"""
-        try:
-            # Create application
-            self.application = Application.builder().token(BOT_TOKEN).build()
-            
-            # Add handlers
-            self.application.add_handler(CommandHandler("start", self.start))
-            self.application.add_handler(CommandHandler("help", self.help_command))
-            self.application.add_handler(CommandHandler("status", self.server_status))
-            self.application.add_handler(CommandHandler("scripts", self.list_scripts))
-            self.application.add_handler(CommandHandler("cmd", self.execute_command))
-            self.application.add_handler(CommandHandler("ps", self.list_processes))
-            self.application.add_handler(CommandHandler("kill", self.kill_process))
-            self.application.add_handler(CommandHandler("sinput", self.send_script_input))
-            self.application.add_handler(CommandHandler("pinput", self.send_pid_input))
-            self.application.add_handler(CommandHandler("enter", self.send_enter_input))
-            self.application.add_handler(CommandHandler("space", self.send_space))
-            self.application.add_handler(CommandHandler("ctrl_c", self.send_ctrl_c))
-            self.application.add_handler(CommandHandler("input", self.send_raw_input))
-            self.application.add_handler(CommandHandler("terminal", self.toggle_terminal))
-            self.application.add_handler(CommandHandler("export", self.export_backup))
-            self.application.add_handler(CommandHandler("importlink", self.import_from_link))
-            self.application.add_handler(CommandHandler("test", self.test_command))
-            self.application.add_handler(MessageHandler(filters.Document.ALL, self.handle_document))
-            self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text))
-            self.application.add_handler(CallbackQueryHandler(self.button_callback))
-            
-            logger.info("🚀 Enhanced Advanced Hosting Bot Started!")
-            
-            # Run the bot
-            self.application.run_polling(drop_pending_updates=True)
-            
-        except Exception as e:
-            logger.error(f"❌ Error starting bot: {e}")
+        # Add handlers
+        self.application.add_handler(CommandHandler("start", self.start))
+        self.application.add_handler(CommandHandler("help", self.help_command))
+        self.application.add_handler(CommandHandler("status", self.server_status))
+        self.application.add_handler(CommandHandler("scripts", self.list_scripts))
+        self.application.add_handler(CommandHandler("cmd", self.execute_command))
+        self.application.add_handler(CommandHandler("ps", self.list_processes))
+        self.application.add_handler(CommandHandler("kill", self.kill_process))
+        self.application.add_handler(CommandHandler("sinput", self.send_script_input))
+        self.application.add_handler(CommandHandler("pinput", self.send_pid_input))
+        self.application.add_handler(CommandHandler("enter", self.send_enter_input))
+        self.application.add_handler(CommandHandler("space", self.send_space))
+        self.application.add_handler(CommandHandler("ctrl_c", self.send_ctrl_c))
+        self.application.add_handler(CommandHandler("input", self.send_raw_input))
+        self.application.add_handler(CommandHandler("terminal", self.toggle_terminal))
+        self.application.add_handler(CommandHandler("export", self.export_backup))
+        self.application.add_handler(CommandHandler("importlink", self.import_from_link))
+        self.application.add_handler(CommandHandler("test", self.test_command))
+        self.application.add_handler(MessageHandler(filters.Document.ALL, self.handle_document))
+        self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text))
+        self.application.add_handler(CallbackQueryHandler(self.button_callback))
+
+        # Get the event loop and set it in the script manager
+        loop = asyncio.get_event_loop()
+        self.script_manager.set_bot_instance(self.application, loop)
+
+        logger.info("🚀 Enhanced Advanced Hosting Bot Started!")
+
+        # Run the bot
+        self.application.run_polling(drop_pending_updates=True)
 
 def main():
     """Main function"""
