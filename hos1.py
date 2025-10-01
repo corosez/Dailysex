@@ -110,6 +110,7 @@ class ScriptManager:
         self.interactive_processes: Dict[int, subprocess.Popen] = {}  # For terminal sessions
         self.backup_thread = None
         self.last_backup_time = None
+        self.bot_loop = asyncio.get_running_loop()
         self.load_data()
         self.ensure_directories()
         self.monitor_thread = threading.Thread(target=self.monitor_processes, daemon=True)
@@ -387,7 +388,7 @@ class ScriptManager:
                 f"**Direct Download Link:**\n`{direct_download_link}`\n\n"
                 f"You can restore this backup using the `/importlink` command."
             )
-            loop = asyncio.get_event_loop()
+            loop = self.bot_loop
             for admin_id in ADMIN_IDS:
                 coro = self.application.bot.send_message(
                     chat_id=admin_id,
@@ -405,7 +406,7 @@ class ScriptManager:
                 f"**Error:** `{error_details}`\n\n"
                 "Please check the bot logs and your Dropbox token."
             )
-            loop = asyncio.get_event_loop()
+            loop = self.bot_loop
             for admin_id in ADMIN_IDS:
                 coro = self.application.bot.send_message(
                     chat_id=admin_id,
