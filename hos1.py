@@ -387,7 +387,7 @@ class ScriptManager:
                 f"**Direct Download Link:**\n`{direct_download_link}`\n\n"
                 f"You can restore this backup using the `/importlink` command."
             )
-        loop = asyncio.get_event_loop()
+            loop = asyncio.get_event_loop()
             for admin_id in ADMIN_IDS:
                 coro = self.application.bot.send_message(
                     chat_id=admin_id,
@@ -407,12 +407,12 @@ class ScriptManager:
             )
             loop = asyncio.get_event_loop()
             for admin_id in ADMIN_IDS:
-                 coro = self.application.bot.send_message(
+                coro = self.application.bot.send_message(
                     chat_id=admin_id,
                     text=error_message,
                     parse_mode=ParseMode.MARKDOWN
                 )
-                 asyncio.run_coroutine_threadsafe(coro, loop)
+                asyncio.run_coroutine_threadsafe(coro, loop)
 
     def cleanup_old_backups(self, keep_count=10):
         """Clean up old backup files, keeping only the most recent ones"""
