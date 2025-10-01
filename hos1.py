@@ -1698,36 +1698,17 @@ Your enhanced server is ready! 🎯
             success, message, backup_path = self.script_manager.create_backup(is_automatic=False)
 
             if success and backup_path:
-                file_size_mb = os.path.getsize(backup_path) / (1024 * 1024)
+                await processing_msg.edit_text("✅ Backup created! Uploading to Dropbox...")
 
-                # If file is larger than 40MB, upload to Dropbox
-                if file_size_mb > 40:
-                    await processing_msg.edit_text(
-                        f"📦 Backup file is large ({file_size_mb:.2f} MB). Uploading to Dropbox..."
-                    )
-                    # Run Dropbox upload in a separate thread
-                    threading.Thread(
-                        target=self.script_manager.upload_to_dropbox,
-                        args=(backup_path, True)  # Pass manual_export=True
-                    ).start()
-                    await processing_msg.edit_text(
-                        "✅ Upload to Dropbox has been initiated. You will receive a notification with the download link shortly."
-                    )
-                else:
-                    # Send directly via Telegram
-                    await processing_msg.edit_text("✅ Backup created! Now uploading...")
-                    try:
-                        await update.message.reply_document(
-                            document=open(backup_path, 'rb'),
-                            caption=f"Here is your backup file.\n\n{message}"
-                        )
-                        await processing_msg.delete()
-                    except Exception as e:
-                        await processing_msg.edit_text(f"❌ Failed to upload backup: {e}")
-                    finally:
-                        # Clean up the local file after sending
-                        if os.path.exists(backup_path):
-                            os.remove(backup_path)
+                # Run Dropbox upload in a separate thread
+                threading.Thread(
+                    target=self.script_manager.upload_to_dropbox,
+                    args=(backup_path, True)  # Pass manual_export=True
+                ).start()
+
+                await processing_msg.edit_text(
+                    "✅ Upload to Dropbox has been initiated. You will receive a notification with the download link shortly."
+                )
             else:
                 await processing_msg.edit_text(f"❌ Backup failed: {message}")
 
