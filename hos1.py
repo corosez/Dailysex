@@ -201,7 +201,7 @@ class ScriptManager:
         
         # Move file to scripts directory
         try:
-            os.rename(file_path, final_path)
+            shutil.move(file_path, final_path)
             os.chmod(final_path, 0o755)
             logger.info(f"Script moved to: {final_path}")
         except Exception as e:
