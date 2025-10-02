@@ -101,12 +101,27 @@ async def _send_admin_notification(context: ContextTypes.DEFAULT_TYPE):
     for admin_id in admin_ids:
         try:
             await context.bot.send_message(
-                chat_id=admin_id,
-                text=message,
-                parse_mode=ParseMode.MARKDOWN
+                chat_id=admin_id, text=message, parse_mode=ParseMode.MARKDOWN
             )
         except Exception as e:
             logger.error(f"Failed to send notification to admin {admin_id}: {e}")
+
+
+async def _edit_admin_notification(context: ContextTypes.DEFAULT_TYPE):
+    """Callback job to edit a message for an admin."""
+    job_context = context.job.data
+    chat_id = job_context["chat_id"]
+    message_id = job_context["message_id"]
+    new_text = job_context["text"]
+    try:
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=new_text,
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    except Exception as e:
+        logger.error(f"Failed to edit notification for chat {chat_id}: {e}")
 
 
 # Bot configuration
@@ -348,7 +363,7 @@ class ScriptManager:
 
     def upload_file_to_dropbox(self, file_path: str) -> Tuple[bool, Optional[str]]:
         """Uploads a file to Dropbox and returns the direct download link."""
-        token = "sl.buF-cR-2X0-s_1562gdhcfjOey4JgYkYf9iAORpC25oT3CMT2N2uVpdeS1xqn5r2tVvG64GZl5gxCeaSClG6vMzl2d29i7zTcs79u5Js7xG4-o_H2aZb2lUf8c3e0b9d8e7f6"  # Replace with your actual token
+        token = "sl.u.AGAnZIeQauzT-bvsAG3hhcVLWV9Ddag28580PSeC-jGnrB7dzhWLyVSfLRLEsTXuR92YtItLSPJN2vdtQFVg9KlfPrRn9UA5HEXjpvZB4t5lJaFTnh1cz3KH1ZHesF-WJskfyFcGggQLEoLZUonqrvrPgp_GhY1sj8BBDKj2GH8VJy5S7WHS93LW3MPTmhOlOLlzHl8JzCZM20AAOqrW5ary0fg6pFaB-X8Y0GVyvE-8oy6Z3EO7d_f9qMLma9uDseIqCczHithvFfNi3FqDc2zP3hXwADKmHyQnkBfeG7780ujhB4Ar8x9NsHMegnjIZ2UzVMhA3hxvWegn_OcsOOhsCZ5asq8-DHkFrLna8UsB4zqLeWyXZsw1hk14T7yhwh_4kKksxXZ3GYB_CheDtGkzD8kL5tB2LVi4MPwjGx_ErA8kdQm2LhG8nUJgInzzPvM0p8ICXA9N6aiW_QvCol66xe6M0xFI_Gr9T2mwt6odtMwYUDRI4aqdP5xc5icnyVSD4xFccFxNLZYtja85Z_AhteIPbVrUjCHEz1oKfjYsKQ5D3mcMS4J_VQtffY5-nAYIpmsYW9fKBZAeR6iyb_Eh8W5EECJij0B5hsPrTsfvdzzWgy2H6Irgl_WZREsdZ0sS54s8hmDDEtIavvSarqQacA3Ong2i1x8wY65rrZh8PuCs5IQlQcBy0BXorlS5wA6SQJbS9Qn-AqRKL31EGWA0cUBqYcD598v6yUnga0gOTqyzMsWgKJbnhHywxEy8h35mq44THJN_BP3q8KGnW7Xw3JF1Fzl3mWGBi0TR8jHoQYknENy8HsL21BAG-y6acVjfWOCYa8TeeCBXcCFsj625g9XEZpOd9DKve3qVgQwMCvwdaFzWE3ab6Pdq_AFk8iwKAS4pGKj7tgqRXfn9eQ8xM3X9z4_hthKR-V2QRGDEdupwGM3tkrXnLPmCzwyw7tC-8cwxYCYmJKK1XGzLb2D25AMx0mUB07roJ2QtXgHJ2dKuvdwbxiEdhkEVEO6P_mMXFxxEPYb-TEqBT18ObyWBDre-CL3p0DZ1VN8kLZqLaUlh-9P7WUiRCL9ikkXo9JJhJ9-oQBgvVJBV09z0EZQ0UvoeIoX6_kiSgSHvQXd1BQcdxeyqR16tn-y3HGHqe782k0Ay4767nbFYcqY2yqXv5mLK12Qi_iun6UP_u6eMVRHBVhjEUOz00mk8x8j2Ez0csC7UwMBKEdef3YegzGYSj_FoH1ieqsv_BabxuUDt0vP_l9xH-Cysgpfs8Yrxxwv27whVKoX5-prNXQ1UHRFn_eUwlBv0EOCP_I3wJ1sD3txyk3_yLixFqBSaDoPiD4WIObrH7aLIR62-VXQud95gJrbFl4ZXZ6iSRyTXhc5lmFIUDJrFIdiUiGSDj0wtHpjmzrYyOT5mW0bwEUDQ8gJp"
         if not token:
             logger.warning("Dropbox token not set. Cannot upload to Dropbox.")
             return False, "Dropbox token not configured."
@@ -390,7 +405,13 @@ class ScriptManager:
             logger.error(f"❌ Failed to upload to Dropbox: {e}")
             return False, str(e)
 
-    def upload_to_dropbox(self, backup_path: str, manual_export: bool = False):
+    def upload_to_dropbox(
+        self,
+        backup_path: str,
+        manual_export: bool = False,
+        chat_id: int = None,
+        message_id: int = None,
+    ):
         """Uploads a backup file to Dropbox and notifies admin."""
         backup_filename = os.path.basename(backup_path)
         success, result = self.upload_file_to_dropbox(backup_path)
@@ -415,12 +436,23 @@ class ScriptManager:
             )
 
         # Schedule the notification using the job queue
-        job_context = {
-            "message": message,
-            "admin_ids": ADMIN_IDS
-        }
-        self.application.job_queue.run_once(_send_admin_notification, 0, data=job_context)
-        logger.info(f"Scheduled Dropbox backup notification to {len(ADMIN_IDS)} admin(s).")
+        if chat_id and message_id:
+            job_context = {
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "text": message,
+            }
+            self.application.job_queue.run_once(
+                _edit_admin_notification, 0, data=job_context
+            )
+        else:
+            # Fallback for automatic backups
+            job_context = {"message": message, "admin_ids": ADMIN_IDS}
+            self.application.job_queue.run_once(
+                _send_admin_notification, 0, data=job_context
+            )
+
+        logger.info(f"Scheduled Dropbox backup notification.")
 
     def cleanup_old_backups(self, keep_count=10):
         """Clean up old backup files, keeping only the most recent ones"""
@@ -1701,24 +1733,24 @@ Your enhanced server is ready! 🎯
                 await self.unauthorized_response(update)
                 return
 
-            processing_msg = await update.message.reply_text("🔄 Creating backup...")
+            processing_msg = await update.message.reply_text(
+                "🔄 Creating and uploading backup..."
+            )
+            chat_id = processing_msg.chat_id
+            message_id = processing_msg.message_id
 
-            success, message, backup_path = self.script_manager.create_backup(is_automatic=False)
+            success, message, backup_path = self.script_manager.create_backup(
+                is_automatic=False
+            )
 
             if success and backup_path:
-                await processing_msg.edit_text("✅ Backup created! Uploading to Dropbox...")
-
                 # Run Dropbox upload in a separate thread
                 threading.Thread(
                     target=self.script_manager.upload_to_dropbox,
-                    args=(backup_path, True)  # Pass manual_export=True
+                    args=(backup_path, True, chat_id, message_id),
                 ).start()
-
-                await processing_msg.edit_text(
-                    "✅ Upload to Dropbox has been initiated. You will receive a notification with the download link shortly."
-                )
             else:
-                await processing_msg.edit_text(f"❌ Backup failed: {message}")
+                await processing_msg.edit_text(f"❌ Backup creation failed: {message}")
 
         except Exception as e:
             logger.error(f"Error creating manual backup: {e}")
@@ -2678,25 +2710,25 @@ Choose an option below:"""
     async def export_backup_callback(self, query, context):
         """Export backup callback"""
         try:
-            await query.edit_message_text("🔄 Creating backup...")
-            
-            success, message, backup_path = self.script_manager.create_backup(is_automatic=False)
-            
-            if success and backup_path:
-                await query.edit_message_text("✅ Backup created! Uploading to Dropbox...")
+            processing_msg = await query.edit_message_text(
+                "🔄 Creating and uploading backup..."
+            )
+            chat_id = processing_msg.chat_id
+            message_id = processing_msg.message_id
 
+            success, message, backup_path = self.script_manager.create_backup(
+                is_automatic=False
+            )
+
+            if success and backup_path:
                 # Run Dropbox upload in a separate thread
                 threading.Thread(
                     target=self.script_manager.upload_to_dropbox,
-                    args=(backup_path, True)  # Pass manual_export=True
+                    args=(backup_path, True, chat_id, message_id),
                 ).start()
-
-                await query.edit_message_text(
-                    "✅ Upload to Dropbox has been initiated. You will receive a notification with the download link shortly."
-                )
             else:
-                await query.edit_message_text(f"❌ Backup failed: {message}")
-                
+                await processing_msg.edit_text(f"❌ Backup creation failed: {message}")
+
         except Exception as e:
             logger.error(f"Error in export_backup_callback: {e}")
             await query.edit_message_text(f"❌ An error occurred: {e}")
