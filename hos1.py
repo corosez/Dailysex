@@ -109,6 +109,7 @@ async def _send_admin_notification(context: ContextTypes.DEFAULT_TYPE):
 
 async def _edit_admin_notification(context: ContextTypes.DEFAULT_TYPE):
     """Callback job to edit a message for an admin."""
+    logger.info("Executing _edit_admin_notification job")
     job_context = context.job.data
     chat_id = job_context["chat_id"]
     message_id = job_context["message_id"]
@@ -120,6 +121,7 @@ async def _edit_admin_notification(context: ContextTypes.DEFAULT_TYPE):
             text=new_text,
             parse_mode=ParseMode.MARKDOWN,
         )
+        logger.info(f"Successfully edited message {message_id} in chat {chat_id}")
     except Exception as e:
         logger.error(f"Failed to edit notification for chat {chat_id}: {e}")
 
