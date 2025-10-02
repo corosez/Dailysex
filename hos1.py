@@ -331,7 +331,7 @@ class ScriptManager:
 
     def upload_file_to_dropbox(self, file_path: str) -> Tuple[bool, Optional[str]]:
         """Uploads a file to Dropbox and returns the direct download link."""
-        token = "sl.buF-cR-2X0-s_1562gdhcfjOey4JgYkYf9iAORpC25oT3CMT2N2uVpdeS1xqn5r2tVvG64GZl5gxCeaSClG6vMzl2d29i7zTcs79u5Js7xG4-o_H2aZb2lUf8c3e0b9d8e7f6"
+        token = os.getenv("DROPBOX_ACCESS_TOKEN")
         if not token:
             logger.warning("DROPBOX_ACCESS_TOKEN not set. Cannot upload to Dropbox.")
             return False, "Dropbox token not configured."
@@ -387,7 +387,7 @@ class ScriptManager:
                 f"**Direct Download Link:**\n`{direct_download_link}`\n\n"
                 f"You can restore this backup using the `/importlink` command."
             )
-        loop = asyncio.get_event_loop()
+            loop = asyncio.get_event_loop()
             for admin_id in ADMIN_IDS:
                 coro = self.application.bot.send_message(
                     chat_id=admin_id,
@@ -407,12 +407,12 @@ class ScriptManager:
             )
             loop = asyncio.get_event_loop()
             for admin_id in ADMIN_IDS:
-                 coro = self.application.bot.send_message(
+                coro = self.application.bot.send_message(
                     chat_id=admin_id,
                     text=error_message,
                     parse_mode=ParseMode.MARKDOWN
                 )
-                 asyncio.run_coroutine_threadsafe(coro, loop)
+                asyncio.run_coroutine_threadsafe(coro, loop)
 
     def cleanup_old_backups(self, keep_count=10):
         """Clean up old backup files, keeping only the most recent ones"""
