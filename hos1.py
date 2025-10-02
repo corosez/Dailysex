@@ -92,6 +92,23 @@ logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('httpcore').setLevel(logging.WARNING)
 logging.getLogger('telegram').setLevel(logging.INFO)
 
+
+async def _send_admin_notification(context: ContextTypes.DEFAULT_TYPE):
+    """Callback job to send a message to admins."""
+    job_context = context.job.data
+    message = job_context["message"]
+    admin_ids = job_context["admin_ids"]
+    for admin_id in admin_ids:
+        try:
+            await context.bot.send_message(
+                chat_id=admin_id,
+                text=message,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            logger.error(f"Failed to send notification to admin {admin_id}: {e}")
+
+
 # Bot configuration
 BOT_TOKEN = os.getenv("BOT_TOKEN", "7320676748:AAHofgkz35-MgY_LCJ_w7iCIkJ2bnMgdg0k")
 ADMIN_IDS = [6827291977]  # Add your Telegram user ID here
@@ -387,32 +404,23 @@ class ScriptManager:
                 f"**Direct Download Link:**\n`{direct_download_link}`\n\n"
                 f"You can restore this backup using the `/importlink` command."
             )
-            loop = asyncio.get_event_loop()
-            for admin_id in ADMIN_IDS:
-                coro = self.application.bot.send_message(
-                    chat_id=admin_id,
-                    text=message,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                asyncio.run_coroutine_threadsafe(coro, loop)
-            logger.info(f"Sent Dropbox backup notification to {len(ADMIN_IDS)} admin(s).")
         else:
             error_details = result
             backup_type = "Manual" if manual_export else "Automatic"
-            error_message = (
+            message = (
                 f"❌ **Dropbox {backup_type} Backup Upload Failed**\n\n"
                 f"**File:** `{backup_filename}`\n\n"
                 f"**Error:** `{error_details}`\n\n"
                 "Please check the bot logs and your Dropbox token."
             )
-            loop = asyncio.get_event_loop()
-            for admin_id in ADMIN_IDS:
-                coro = self.application.bot.send_message(
-                    chat_id=admin_id,
-                    text=error_message,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                asyncio.run_coroutine_threadsafe(coro, loop)
+
+        # Schedule the notification using the job queue
+        job_context = {
+            "message": message,
+            "admin_ids": ADMIN_IDS
+        }
+        self.application.job_queue.run_once(_send_admin_notification, 0, context=job_context)
+        logger.info(f"Scheduled Dropbox backup notification to {len(ADMIN_IDS)} admin(s).")
 
     def cleanup_old_backups(self, keep_count=10):
         """Clean up old backup files, keeping only the most recent ones"""
