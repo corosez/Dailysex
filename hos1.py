@@ -419,7 +419,7 @@ class ScriptManager:
             "message": message,
             "admin_ids": ADMIN_IDS
         }
-        self.application.job_queue.run_once(_send_admin_notification, 0, context=job_context)
+        self.application.job_queue.run_once(_send_admin_notification, 0, data=job_context)
         logger.info(f"Scheduled Dropbox backup notification to {len(ADMIN_IDS)} admin(s).")
 
     def cleanup_old_backups(self, keep_count=10):
