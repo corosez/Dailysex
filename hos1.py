@@ -348,9 +348,9 @@ class ScriptManager:
 
     def upload_file_to_dropbox(self, file_path: str) -> Tuple[bool, Optional[str]]:
         """Uploads a file to Dropbox and returns the direct download link."""
-        token = os.getenv("DROPBOX_ACCESS_TOKEN")
+        token = "sl.buF-cR-2X0-s_1562gdhcfjOey4JgYkYf9iAORpC25oT3CMT2N2uVpdeS1xqn5r2tVvG64GZl5gxCeaSClG6vMzl2d29i7zTcs79u5Js7xG4-o_H2aZb2lUf8c3e0b9d8e7f6"  # Replace with your actual token
         if not token:
-            logger.warning("DROPBOX_ACCESS_TOKEN not set. Cannot upload to Dropbox.")
+            logger.warning("Dropbox token not set. Cannot upload to Dropbox.")
             return False, "Dropbox token not configured."
 
         if not file_path or not os.path.exists(file_path):
