@@ -1127,6 +1127,10 @@ class TelegramBot:
         await update.message.reply_text("🚫 Unauthorized access. Contact admin.")
         logger.warning(f"Unauthorized access attempt from user {update.effective_user.id}")
 
+    async def error_handler(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Log the error and send a telegram message to notify the developer."""
+        logger.error("Exception while handling an update:", exc_info=context.error)
+
     async def send_script_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Send input to a specific script"""
         try:
@@ -2739,6 +2743,9 @@ Choose an option below:"""
         try:
             # Create application
             self.application = Application.builder().token(BOT_TOKEN).build()
+
+            # Add error handler
+            self.application.add_error_handler(self.error_handler)
             
             # Add handlers
             self.application.add_handler(CommandHandler("start", self.start))
